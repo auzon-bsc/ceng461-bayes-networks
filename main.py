@@ -38,6 +38,7 @@ if bayesNet.check_model():
 
 solver = VariableElimination(bayesNet)
 D = solver.query(variables=['D'])
+A = solver.query(variables=['A'])
 D_A0 = solver.query(variables=['D'], evidence={'A': 0})
 E_B0 = solver.query(variables=['E'], evidence={'B': 0})
 A_D1E0 = solver.query(variables=['A'], evidence={'D': 1, 'E': 0})
@@ -45,17 +46,23 @@ B_A1 = solver.query(variables=['B'], evidence={'A': 1})
 E_A1 = solver.query(variables=['E'], evidence={'A': 1})
 
 # [0] = P(-), [1] = P(+)
-D1 = (D.values)[1]                                  # P(+D)
-D1_A0 = (D_A0.values)[1]                            # P(+D|-A)
-E1_B0 = (E_B0.values)[1]                            # P(+E|-B)
-A1_D1E0 = (A_D1E0.values)[1]                        # P(+A|+D,-E)
-B1E0_A1 = (B_A1.values)[1] * (E_A1.values)[0]       # P(+B,-E|+A)
+
+# P(+D)
+D1 = (D.values)[1]
+# $ P(+D,-A) = P(P(+D|-A) * P(-A))
+D1A0 = (D_A0.values)[1] * (A.values)[0]
+# $ P(+E|-B)
+E1_B0 = (E_B0.values)[1]
+# $ P(+A|+D,-E)
+A1_D1E0 = (A_D1E0.values)[1]
+# $ P(+B,-E|+A) = P(+B|+A) * P(-E|+A)
+B1E0_A1 = (B_A1.values)[1] * (E_A1.values)[0]
 
 print(f"")
 print(f"1. Results using variable elimination:")
 print(f"======================================")
 print(f"P(+D) == {round(D1, 3)}")
-print(f"P(+D|-A) == {round(D1_A0, 3)}")
+print(f"P(+D,-A) == {round(D1A0, 3)}")
 print(f"P(+E|-B) == {round(E1_B0, 3)}")
 print(f"P(+A|+D,-E) == {round(A1_D1E0, 3)}")
 print(f"P(+B,-E|+A) == {round(B1E0_A1, 3)}")
@@ -94,32 +101,39 @@ for i in range(N):
     E.append(e)
 
 # Queries
-D_A0 = []
+DA = []
 E_B0 = []
 A_D1E0 = []
-BE_A1 = []
+B_A1 = []
+E_A1 = []
 for i in range(N):
-    if not A[i]:
-        D_A0.append(D[i])
+    DA.append(D[i] and not A[i])
     if not B[i]:
         E_B0.append(E[i])
     if D[i] and not E[i]:
         A_D1E0.append(A[i])
     if A[i]:
-        BE_A1.append(B[i] and not E[i])
+        B_A1.append(B[i])
+        E_A1.append(E[i])
 
 # Probability calculations
-D1 = sum(D)/len(D)                          # P(+D)
-D1_A0 = sum(D_A0)/len(D_A0)             # P(+D|-A)
-E1_B0 = sum(E_B0)/len(E_B0)             # P(+E|-B)
-A1_D1E0 = sum(A_D1E0)/len(A_D1E0)     # P(+A|+D,-E)
-B1E0_A1 = sum(BE_A1)/len(BE_A1)
+
+# $ P(+D)
+D1 = sum(D)/len(D)
+# $ P(+D|-A)
+D1A0 = sum(DA)/len(DA)
+# $ P(+E|-B)
+E1_B0 = sum(E_B0)/len(E_B0)
+# $ P(+A|+D,-E)
+A1_D1E0 = sum(A_D1E0)/len(A_D1E0)
+# $ P(+B,-E|+A) = P(+B|+A) * P(-E|+A)
+B1E0_A1 = sum(B_A1)/len(B_A1) * (1 - sum(E_A1)/len(E_A1))
 
 print(f"")
 print(f"2. Results using monte carlo:")
 print(f"======================================")
 print(f"P(+D) == {round(D1, 3)}")
-print(f"P(+D|-A) == {round(D1_A0, 3)}")
+print(f"P(+D,-A) == {round(D1A0, 3)}")
 print(f"P(+E|-B) == {round(E1_B0, 3)}")
 print(f"P(+A|+D,-E) == {round(A1_D1E0, 3)}")
 print(f"P(+B,-E|+A) == {round(B1E0_A1, 3)}")
